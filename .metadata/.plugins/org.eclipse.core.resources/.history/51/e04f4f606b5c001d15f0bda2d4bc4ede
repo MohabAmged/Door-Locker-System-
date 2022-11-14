@@ -1,0 +1,292 @@
+ /******************************************************************************
+ *
+ * Module: APPLICATION
+ *
+ * File Name: HMI_APP.c
+ *
+ * Description: Source file for the App
+ *
+ * Author: Mohab Amged
+ *
+ *******************************************************************************/
+/*******************************************************************************
+ *                              INCLUDES                                       *
+ *******************************************************************************/
+#include "uart.h"
+#include "common_macros.h" /* To use the macros like SET_BIT */
+#include "GPIO.h"
+#include "keypad.h"
+#include "Timer1.h"
+#include "LCD.h"
+#include "util/delay.h"
+
+/*******************************************************************************
+ *                          Static Definitions                                 *
+ *******************************************************************************/
+#define   PASSCHECK      TRUE
+#define   PASSFAILED     FALSE
+#define   SENDREADY      0
+#define   RECIEVEREADY   1
+#define   ALARM          8
+/*******************************************************************************
+ *                          Global Variables                                   *
+ *******************************************************************************/
+uint8 G_strptr1[7];
+uint8 G_strptr2[7];
+uint8 Timer_Count=0;
+static volatile void(*Func_ptr)();
+Timer1_ConfigType TIMER_Config= {
+		  .initial_value = 0 ,
+		  .compare_value = 2930, // it will be used in compare mode only.
+		 .prescaler = TIMER1_CLOCK1024,
+		 .mode = TIMER1_COMPAREMODE
+};
+
+/*******************************************************************************
+ *                          Functions Definitions                              *
+ *******************************************************************************/
+
+void HMI_System_Init(void);
+
+void Get_Input(uint8* ptr);
+
+uint8 Get_Password(uint8* ptr);
+
+void Timer_func(void);
+
+
+
+
+
+/*******************************************************************************
+ *                              MAIN                                           *
+ *******************************************************************************/
+int main (void)
+{
+	/* Init Variables */
+ uint8 menu=0;
+ uint8 pass_array[7];
+ uint8 PassTest;
+ uint8 PassTest_Count=0;
+ UART_ConfigType UART_Config= {
+		  .bit_data = UART_CHAR8,
+		  .parity = UART_PARITY_DISABLE,
+		  .stopbit = UART_STOP1,
+		  .baudrate = 9600
+ };
+
+
+ /* Timer Init */
+Timer1_init(&TIMER_Config); /* Timer Init */
+
+
+ /* LCD Init */
+ LCD_Init();
+
+ /*UART Init */
+ UART_init(&UART_Config);
+
+ /* Timer Init */
+Func_ptr=Timer_func;
+Timer1_setCallBack(Func_ptr);
+
+ /* Setup UART Pins Directions */
+ GPIO_setupPinDirection(PORTIDD, 0, PINPUT);
+ GPIO_setupPinDirection(PORTIDD, 1, POUTPUT);
+
+ HMI_System_Init(); /* Adding password */
+
+ /* Enable Interrupts*/
+ SET_BIT(SREG,7);
+
+while (1)
+{
+
+
+    	/* Displaying The Main Menu */
+    	LCD_ClearScreen();
+    	LCD_MoveAndDisplayString("+ : Open Door",0,0);
+    	LCD_MoveAndDisplayString("- : Change Pass", 1 ,0);
+
+    	/*  Getting The Input */
+    	menu=KEYPAD_getPressedKey();
+
+    	/* Cheking The input */
+    if (menu == '+')
+    {
+    	UART_sendByte(1);
+
+
+    	PassTest_Count=0;
+        while(1)
+        {
+        PassTest=Get_Password(pass_array);
+        LCD_MoveCursor(1, 7);
+        LCD_DisplayChar(PassTest+'0');
+        if(PassTest==PASSCHECK)
+        {
+        	Door_Func();
+        	break;
+
+        }
+        else if (PassTest == ALARM)
+        {
+        	Timer_Count=0;
+        	LCD_ClearScreen();
+        	while(Timer_Count<2)
+        	{
+
+            LCD_MoveAndDisplayString("ERROR",0,0);
+
+        	   }
+
+            break;
+
+        }
+
+        }
+        menu=0;
+
+    }
+    else if (menu == '-')
+    {
+    	UART_sendByte(0);
+
+    	PassTest_Count=0;
+    	        while(1)
+    	        {
+    	        PassTest=Get_Password(pass_array);
+    	        LCD_MoveCursor(1, 7);
+    	        LCD_DisplayChar(PassTest+'0');
+    	        if(PassTest==PASSCHECK)
+    	        {
+    	        	HMI_System_Init();
+    	        	break;
+    	        }
+    	        else if (PassTest == ALARM)
+    	        {
+    	        	Timer_Count=0;
+    	        	LCD_ClearScreen();
+    	        	while(Timer_Count<2)
+    	        	{
+
+    	            LCD_MoveAndDisplayString("ERROR",0,0);
+
+    	        	   }
+
+    	            break;
+
+    	        }
+
+    	        }
+    	        menu=0;
+
+
+    }
+}
+	return 0;
+}
+
+/*******************************************************************************
+ *                              Functions                                      *
+ *******************************************************************************/
+void HMI_System_Init(void)
+{
+	uint8 done=0xff;
+	while( done != PASSCHECK )
+	  {
+    LCD_ClearScreen();
+	LCD_DisplayString("Plz Enter Pass : "); /* Display Enter Password */
+    LCD_MoveCursor(1,0);  /* To Start From The next Lcd Line */
+    /* Saving The Pressed Keys To The First Variable */
+    Get_Input(G_strptr1);
+    UART_sendString(G_strptr1); /* Sending The First String */
+
+
+    /* Clearing the Screen And Asking For the pass Again */
+	LCD_ClearScreen();
+	LCD_MoveAndDisplayString("Please Re-enter The ", 0, 0);
+	LCD_MoveAndDisplayString("Same Pass: ", 1, 0);
+	LCD_MoveCursor(1,10);
+
+	/* Saving The Pressed Keys To The 2nd Variable */
+	Get_Input(G_strptr2);
+    UART_sendString(G_strptr2); /* Sending The Second String */
+
+	/* Wait To Have An Ach For Completing receiving */
+    done=UART_recieveByte()-'0';
+
+	}
+
+
+}
+
+void Get_Input (uint8* ptr)
+{
+	uint8 count =0;
+	   while(1)
+		{
+		   _delay_ms(250);
+		   ptr[count]=KEYPAD_getPressedKey();
+		    if(ptr[count] == 13)
+		    {
+		      break;
+		     }
+		    LCD_DisplayChar(ptr[count]+'0');
+		    count++;
+		}
+	     ptr[count+1]='\0';
+
+}
+
+
+
+uint8 Get_Password (uint8* ptr)
+{
+    uint8 ptr2[7];
+	uint8 pass=0;
+
+	    	        LCD_ClearScreen();
+	    	        LCD_MoveAndDisplayString("Plz Enter Passw: ", 0 , 0);
+	    	        LCD_MoveCursor(1, 0);
+	    	        Get_Input(ptr2); /* Get The Input */
+	    	        UART_sendString(ptr2); /* Send For Comparison */
+	    	        pass = UART_recieveByte()-'0' ; /* Get The Check Result */
+	    	        LCD_DisplayChar(pass+'0');
+                    ptr=ptr2;
+	    	        return pass;
+}
+
+void Timer_func(void)
+{
+	Timer_Count++;
+
+}
+
+void Door_Func(void)
+{uint8 count=0;
+                Timer_Count=0;
+			    LCD_ClearScreen();
+				LCD_MoveAndDisplayString("Door Is Opening",0, 0);
+			    while(Timer_Count<2)
+			    {
+					LCD_MoveAndDisplayString("  ",1, 0);
+			    }
+			    _delay_ms(1000);
+			    Timer_Count=0;
+				LCD_ClearScreen();
+				LCD_MoveAndDisplayString("HOLD",0, 0);
+				while(Timer_Count <1)
+				{
+					LCD_MoveAndDisplayString("  ",1, 0);
+				}
+				Timer_Count=0;
+				LCD_ClearScreen();
+				LCD_MoveAndDisplayString("Door Is Closing",0, 0);
+				while(Timer_Count<2)
+				     {
+					LCD_MoveAndDisplayString("  ",1, 0);
+				}
+}
+
+

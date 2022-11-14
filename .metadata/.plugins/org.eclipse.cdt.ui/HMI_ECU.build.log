@@ -1,0 +1,82 @@
+23:20:54 **** Incremental Build of configuration Release for project HMI_ECU ****
+make all 
+Building file: ../HMI_APP.c
+Invoking: AVR Compiler
+avr-gcc -Wall -Os -fpack-struct -fshort-enums -ffunction-sections -fdata-sections -std=gnu99 -funsigned-char -funsigned-bitfields -mmcu=atmega32 -DF_CPU=1000000UL -MMD -MP -MF"HMI_APP.d" -MT"HMI_APP.o" -c -o "HMI_APP.o" "../HMI_APP.c"
+In file included from ../LCD.h:17,
+                 from ../HMI_APP.c:20:
+../Macros.h:26:1: warning: "GET_BIT" redefined
+In file included from ../HMI_APP.c:16:
+../common_macros.h:37:1: warning: this is the location of the previous definition
+In file included from ../LCD.h:17,
+                 from ../HMI_APP.c:20:
+../Macros.h:32:1: warning: "ROR" redefined
+In file included from ../HMI_APP.c:16:
+../common_macros.h:26:1: warning: this is the location of the previous definition
+In file included from ../LCD.h:17,
+                 from ../HMI_APP.c:20:
+../Macros.h:35:1: warning: "ROL" redefined
+In file included from ../HMI_APP.c:16:
+../common_macros.h:29:1: warning: this is the location of the previous definition
+../HMI_APP.c: In function 'main':
+../HMI_APP.c:87: warning: function return types not compatible due to 'volatile'
+../HMI_APP.c:88: warning: function return types not compatible due to 'volatile'
+../HMI_APP.c:105: warning: pointer targets in passing argument 1 of 'LCD_MoveAndDisplayString' differ in signedness
+../HMI_APP.c:106: warning: pointer targets in passing argument 1 of 'LCD_MoveAndDisplayString' differ in signedness
+../HMI_APP.c:123: warning: implicit declaration of function 'Door_Func'
+../HMI_APP.c:135: warning: pointer targets in passing argument 1 of 'LCD_MoveAndDisplayString' differ in signedness
+../HMI_APP.c:172: warning: pointer targets in passing argument 1 of 'LCD_MoveAndDisplayString' differ in signedness
+../HMI_APP.c: In function 'HMI_System_Init':
+../HMI_APP.c:205: warning: pointer targets in passing argument 1 of 'LCD_DisplayString' differ in signedness
+../HMI_APP.c:214: warning: pointer targets in passing argument 1 of 'LCD_MoveAndDisplayString' differ in signedness
+../HMI_APP.c:215: warning: pointer targets in passing argument 1 of 'LCD_MoveAndDisplayString' differ in signedness
+../HMI_APP.c: In function 'Get_Password':
+../HMI_APP.c:263: warning: pointer targets in passing argument 1 of 'LCD_MoveAndDisplayString' differ in signedness
+../HMI_APP.c:264: warning: pointer targets in passing argument 1 of 'LCD_MoveAndDisplayString' differ in signedness
+../HMI_APP.c: At top level:
+../HMI_APP.c:279: warning: conflicting types for 'Door_Func'
+../HMI_APP.c:123: warning: previous implicit declaration of 'Door_Func' was here
+../HMI_APP.c: In function 'Door_Func':
+../HMI_APP.c:286: warning: pointer targets in passing argument 1 of 'LCD_MoveAndDisplayString' differ in signedness
+../HMI_APP.c:289: warning: pointer targets in passing argument 1 of 'LCD_MoveAndDisplayString' differ in signedness
+../HMI_APP.c:294: warning: pointer targets in passing argument 1 of 'LCD_MoveAndDisplayString' differ in signedness
+../HMI_APP.c:297: warning: pointer targets in passing argument 1 of 'LCD_MoveAndDisplayString' differ in signedness
+../HMI_APP.c:302: warning: pointer targets in passing argument 1 of 'LCD_MoveAndDisplayString' differ in signedness
+../HMI_APP.c:305: warning: pointer targets in passing argument 1 of 'LCD_MoveAndDisplayString' differ in signedness
+Finished building: ../HMI_APP.c
+ 
+Building target: HMI_ECU.elf
+Invoking: AVR C Linker
+avr-gcc -Wl,-Map,HMI_ECU.map -mmcu=atmega32 -o "HMI_ECU.elf"  ./GPIO.o ./HMI_APP.o ./LCD.o ./Timer1.o ./keypad.o ./uart.o   
+Finished building target: HMI_ECU.elf
+ 
+Invoking: AVR Create Extended Listing
+avr-objdump -h -S HMI_ECU.elf  >"HMI_ECU.lss"
+Finished building: HMI_ECU.lss
+ 
+Create Flash image (ihex format)
+avr-objcopy -R .eeprom -R .fuse -R .lock -R .signature -O ihex HMI_ECU.elf  "HMI_ECU.hex"
+Finished building: HMI_ECU.hex
+ 
+Create eeprom image (ihex format)
+avr-objcopy -j .eeprom --no-change-warnings --change-section-lma .eeprom=0 -O ihex HMI_ECU.elf  "HMI_ECU.eep"
+Finished building: HMI_ECU.eep
+ 
+Invoking: Print Size
+avr-size --format=avr --mcu=atmega32 HMI_ECU.elf
+AVR Memory Usage
+----------------
+Device: atmega32
+
+Program:    3100 bytes (9.5% Full)
+(.text + .data + .bootloader)
+
+Data:        167 bytes (8.2% Full)
+(.data + .bss + .noinit)
+
+
+Finished building: sizedummy
+ 
+
+23:20:56 Build Finished. 0 errors, 26 warnings. (took 1s.498ms)
+

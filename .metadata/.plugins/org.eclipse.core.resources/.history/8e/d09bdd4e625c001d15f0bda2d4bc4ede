@@ -1,0 +1,316 @@
+ /******************************************************************************
+ *
+ * Module: APPLICATION
+ *
+ * File Name: HMI_APP.c
+ *
+ * Description: Source file for the App
+ *
+ * Author: Mohab Amged
+ *
+ *******************************************************************************/
+/*******************************************************************************
+ *                              INCLUDES                                       *
+ *******************************************************************************/
+#include "uart.h"
+#include "common_macros.h" /* To use the macros like SET_BIT */
+#include "GPIO.h"
+#include "keypad.h"
+#include "Timer1.h"
+#include "LCD.h"
+#include "twi.h"
+#include "external_eeprom.h"
+#include "BUZZER.h"
+#include "DC_Motor.h"
+#include "util/delay.h"
+#include "string.h"
+
+/*******************************************************************************
+ *                          Static Definitions                                 *
+ *******************************************************************************/
+#define   PASSCHECK      TRUE
+#define   PASSFAILED     FALSE
+#define   SENDREADY        0
+#define   RECIEVEREADY     1
+#define   PASS_EEPROMADDRESS 0x0311
+#define   ALARM            8
+/*******************************************************************************
+ *                          Global Variables                                   *
+ *******************************************************************************/
+//uint8 G_PassRecieve[7];
+//uint8 G_PassCompare[7];
+uint8 System_State=0;
+uint8 G_Timer_Count=0;
+uint8 State=0;
+static volatile void(*Func_ptr)();
+Timer1_ConfigType TIMER_Config= {
+		  .initial_value = 0 ,
+		  .compare_value = 25438, // it will be used in compare mode only.
+		 .prescaler = TIMER1_CLOCK1024,
+		 .mode = TIMER1_COMPAREMODE
+};
+
+/*******************************************************************************
+ *                          Functions Definitions                              *
+ *******************************************************************************/
+
+uint8 ComparePass(uint8 * str1,uint8 * str2);
+
+void RecievePass (uint8* str);
+
+void EEPROM_SendPass(uint8 * ptr );
+
+void Timer1_CallBack(void);
+
+void Door_func(void);
+
+uint8 check_pass(void);
+
+void Alarm_func(void);
+
+uint8 change_pass(void);
+
+
+/*******************************************************************************
+ *                              MAIN                                           *
+ *******************************************************************************/
+int main (void)
+{
+	uint8 Pass_check=FALSE;
+	uint8 Pass_count=0;
+	 UART_ConfigType UART_Config= {
+			  .bit_data = UART_CHAR8,
+			  .parity = UART_PARITY_DISABLE,
+			  .stopbit = UART_STOP1,
+			  .baudrate = 9600
+	 };
+
+
+	 /* LCD Init */
+	 LCD_Init();
+
+	 /*UART Init */
+	 UART_init(&UART_Config);
+	 GPIO_setupPinDirection(PORTIDD, 0, PINPUT);
+	 GPIO_setupPinDirection(PORTIDD, 1, POUTPUT);
+
+	 /* Timer Init */
+	Func_ptr=Timer1_CallBack;
+	Timer1_setCallBack(Func_ptr);
+
+	/* Dc Motor Init */
+	DcMotor_Init();
+
+
+    /* TWI init */
+	TWI_init();
+	GPIO_setupPortDirection(PORTIDC, PORTOUT);
+
+	/* Enable Interrupt*/
+   SET_BIT(SREG,7);
+
+	while(1)
+	{
+
+		while(System_State==0)
+		{
+			System_State=change_pass();
+		}
+
+		State=UART_recieveByte();
+
+
+		while(System_State == 1)
+		{
+
+        	Pass_count=0;
+			while(Pass_count<3)
+			{
+			Pass_check = check_pass();
+
+	        if(Pass_count>=2 && Pass_check== FALSE)
+	        {
+	        	Pass_check = ALARM;
+
+	        }
+	        _delay_ms(15);
+			UART_sendByte(Pass_check+'0');
+
+			 if(Pass_check == TRUE)
+			 {
+				 break;
+			 }
+
+             Pass_count++;
+
+			}
+
+	        if(Pass_check == ALARM)
+	            {
+	                Alarm_func();
+	                System_State=1;
+	            	break;
+	            }
+            if(State == 0)
+            {
+            	System_State=0;
+            	break;
+            }
+            else if(State == 1)
+            {
+            	Door_func();
+
+            }
+
+		}
+
+
+	}
+
+
+	return 0;
+}
+
+/*******************************************************************************
+ *                              Functions                                      *
+ *******************************************************************************/
+uint8 change_pass(void)
+{
+	uint8 Recieveptr1[7];
+	uint8 Recieveptr2[7];
+	uint8 check=0;
+	_delay_ms(10);
+	/* Receive the Inputs */
+	RecievePass(Recieveptr1);
+	LCD_MoveCursor(0,0);
+	LCD_DisplayString(Recieveptr1);
+	_delay_ms(10);
+	RecievePass(Recieveptr2);
+	LCD_MoveCursor(1,0);
+	LCD_DisplayString(Recieveptr2);
+
+    check=ComparePass(Recieveptr1,Recieveptr2);
+    LCD_MoveCursor(0,8);
+    LCD_DisplayChar(check+'0');
+
+    _delay_ms(15);
+    UART_sendByte(check+'0');
+    if(check == TRUE)
+    {
+       EEPROM_SendPass(Recieveptr1);
+       return TRUE;
+    }
+    else
+    	return FALSE;
+
+
+}
+uint8 ComparePass(uint8 * str1,uint8 * str2)
+{
+	uint8 Send=0xff;
+	Send=strcmp(str1,str2);
+	if(Send == FALSE)
+	{
+		Send=TRUE;
+
+      }
+	else
+    {
+		Send=FALSE;
+		    }
+	return Send;
+
+}
+
+void RecievePass (uint8* str)
+{
+    UART_receiveString(str);
+}
+
+
+void EEPROM_SendPass(uint8 * ptr )
+{ uint8 count=0;
+       while(ptr[count] != '\0')
+       {
+    	   EEPROM_writeByte(PASS_EEPROMADDRESS+count,ptr[count]);
+    	   _delay_ms(10);
+    	   count++;
+       }
+	   EEPROM_writeByte(PASS_EEPROMADDRESS+count,13);
+
+}
+void EEPROM_GetPass(uint8 * ptr )
+{ uint8 count=0;
+  uint8 val;
+     EEPROM_readByte(PASS_EEPROMADDRESS+count, &val);
+     ptr[count]=val;
+      while( val != 13)
+       {
+     	   count++;
+    	   _delay_ms(10);
+    	   EEPROM_readByte(PASS_EEPROMADDRESS+count, &val);
+    	   ptr[count]=val;
+       }
+      ptr[count]='\0';
+
+}
+
+
+void Timer1_CallBack(void)
+{
+	G_Timer_Count++;
+}
+
+void Door_func(void)
+{
+	Timer1_init(&TIMER_Config);
+	G_Timer_Count=0;
+
+
+	DcMotor_Rotate(ClockWise);
+	while(G_Timer_Count<2)
+	{_delay_ms(20);}
+	G_Timer_Count=0;
+	DcMotor_Rotate(Stop);
+	while(G_Timer_Count<1)
+	{_delay_ms(20);}
+	G_Timer_Count=0;
+	DcMotor_Rotate(AntiClockWise);
+	while(G_Timer_Count<2)
+	{_delay_ms(20);}
+	DcMotor_Rotate(Stop);
+    Timer1_deInit();
+
+}
+
+uint8 check_pass(void)
+{
+	uint8 check=0;
+	uint8 ptr[7];
+	uint8 Pass_Compare[7];
+	RecievePass(ptr);
+	LCD_MoveAndDisplayString(ptr,0,0);
+	EEPROM_GetPass(Pass_Compare);
+	LCD_MoveAndDisplayString(Pass_Compare,1,0);
+    check=ComparePass(Pass_Compare, ptr);
+    LCD_MoveCursor(0, 10);
+    LCD_DisplayChar(check+4+'0');
+    return check;
+}
+
+void Alarm_func(void)
+{
+	Timer1_init(&TIMER_Config);
+	Buzzer_init();
+	while(G_Timer_Count<2)
+	{
+		Buzzer_on();
+
+	}
+	Buzzer_off();
+	G_Timer_Count=0;
+	Timer1_deInit();
+
+}
+
+

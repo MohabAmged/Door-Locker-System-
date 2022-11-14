@@ -1,0 +1,57 @@
+23:20:53 **** Incremental Build of configuration Debug for project Control_ECU ****
+make all 
+Building file: ../Control_APP.c
+Invoking: AVR Compiler
+avr-gcc -Wall -g2 -gstabs -O0 -fpack-struct -fshort-enums -ffunction-sections -fdata-sections -std=gnu99 -funsigned-char -funsigned-bitfields -mmcu=atmega32 -DF_CPU=8000000UL -MMD -MP -MF"Control_APP.d" -MT"Control_APP.o" -c -o "Control_APP.o" "../Control_APP.c"
+In file included from ../LCD.h:17,
+                 from ../Control_APP.c:20:
+../Macros.h:26:1: warning: "GET_BIT" redefined
+In file included from ../Control_APP.c:16:
+../common_macros.h:37:1: warning: this is the location of the previous definition
+In file included from ../LCD.h:17,
+                 from ../Control_APP.c:20:
+../Macros.h:32:1: warning: "ROR" redefined
+In file included from ../Control_APP.c:16:
+../common_macros.h:26:1: warning: this is the location of the previous definition
+In file included from ../LCD.h:17,
+                 from ../Control_APP.c:20:
+../Macros.h:35:1: warning: "ROL" redefined
+In file included from ../Control_APP.c:16:
+../common_macros.h:29:1: warning: this is the location of the previous definition
+In file included from ../Control_APP.c:25:
+c:/winavr-20100110/lib/gcc/../../avr/include/util/delay.h:90:3: warning: #warning "Compiler optimizations disabled; functions from <util/delay.h> won't work as designed"
+../Control_APP.c: In function 'main':
+../Control_APP.c:100: warning: function return types not compatible due to 'volatile'
+../Control_APP.c:101: warning: function return types not compatible due to 'volatile'
+../Control_APP.c: In function 'ComparePass':
+../Control_APP.c:207: warning: pointer targets in passing argument 1 of 'strcmp' differ in signedness
+../Control_APP.c:207: warning: pointer targets in passing argument 2 of 'strcmp' differ in signedness
+Finished building: ../Control_APP.c
+ 
+Building target: Control_ECU.elf
+Invoking: AVR C Linker
+avr-gcc -Wl,-Map,Control_ECU.map -mmcu=atmega32 -o "Control_ECU.elf"  ./BUZZER.o ./Control_APP.o ./DC_Motor.o ./GPIO.o ./LCD.o ./Timer1.o ./external_eeprom.o ./keypad.o ./twi.o ./uart.o   
+Finished building target: Control_ECU.elf
+ 
+Invoking: AVR Create Extended Listing
+avr-objdump -h -S Control_ECU.elf  >"Control_ECU.lss"
+Finished building: Control_ECU.lss
+ 
+Invoking: Print Size
+avr-size --format=avr --mcu=atmega32 Control_ECU.elf
+AVR Memory Usage
+----------------
+Device: atmega32
+
+Program:   12104 bytes (36.9% Full)
+(.text + .data + .bootloader)
+
+Data:         27 bytes (1.3% Full)
+(.data + .bss + .noinit)
+
+
+Finished building: sizedummy
+ 
+
+23:20:54 Build Finished. 0 errors, 11 warnings. (took 1s.281ms)
+
